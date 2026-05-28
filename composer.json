@@ -1,0 +1,31 @@
+{
+  "name": "avsbhq/avsb",
+  "description": "A vs B feature-flag and experimentation SDK for PHP.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "psr/log": "^3.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0"
+  },
+  "suggest": {
+    "laravel/framework": "For the Laravel ServiceProvider and Facade",
+    "symfony/framework-bundle": "For the Symfony Bundle and EventListener",
+    "predis/predis": "For the RedisStickyBucketService"
+  },
+  "autoload": {
+    "psr-4": {
+      "Avsbhq\\Avsb\\": "src/Avsbhq/Avsb/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Avsbhq\\Avsb\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
