@@ -3,6 +3,21 @@
   "description": "A vs B feature-flag and experimentation SDK for PHP.",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://github.com/avsbhq/avsb-php",
+  "keywords": ["feature-flags", "experimentation", "ab-testing", "openfeature", "laravel", "symfony"],
+  "authors": [
+    {
+      "name": "AvsB Platform",
+      "email": "sdk@avsb.cloud",
+      "homepage": "https://avsb.cloud",
+      "role": "Developer"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/avsbhq/avsb-php/issues",
+    "docs": "https://avsb.cloud/docs",
+    "source": "https://github.com/avsbhq/avsb-php"
+  },
   "require": {
     "php": "^8.2",
     "psr/log": "^3.0"
