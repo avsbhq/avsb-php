@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * Holdout evaluator — PHP port of holdouts.ts from @avsbhq/core.
+ * Holdout evaluator: PHP port of holdouts.ts from @avsbhq/core.
  *
- * Spec §8.2 — holdouts + mutual exclusion.
+ * Spec §8.2: holdouts + mutual exclusion.
  *
  * Walks the datafile's active holdouts; the first one that participates
  * in $flagId and whose bucket lands inside its traffic-allocation window

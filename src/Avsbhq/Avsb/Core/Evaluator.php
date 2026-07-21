@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * Flag evaluator — PHP port of evaluate.ts from @avsbhq/core.
+ * Flag evaluator: PHP port of evaluate.ts from @avsbhq/core.
  *
  * Evaluation order (mirrors the TS implementation exactly):
  *   1. Flag not found → not_found

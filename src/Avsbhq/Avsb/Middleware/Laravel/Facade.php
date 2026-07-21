@@ -7,7 +7,7 @@ namespace Avsbhq\Avsb\Middleware\Laravel;
 use Avsbhq\Avsb\AvsbServer;
 
 /**
- * Avsb Facade — provides static access to AvsbServer in Laravel applications.
+ * Avsb Facade: provides static access to AvsbServer in Laravel applications.
  *
  * Requires laravel/framework (listed as a suggested dependency).
  *

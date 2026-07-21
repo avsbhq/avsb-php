@@ -10,7 +10,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * AvsbServer — main entry point for the PHP server SDK.
+ * AvsbServer: main entry point for the PHP server SDK.
  *
  * Provides typed get*Flag methods for boolean, string, number, and JSON
  * flag types, as well as track() and identify() for event ingestion.

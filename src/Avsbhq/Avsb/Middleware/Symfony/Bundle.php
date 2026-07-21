@@ -7,7 +7,7 @@ namespace Avsbhq\Avsb\Middleware\Symfony;
 use Avsbhq\Avsb\Middleware\Symfony\DependencyInjection\AvsbExtension;
 
 /**
- * AvsbBundle — Symfony bundle for the A vs B SDK.
+ * AvsbBundle: Symfony bundle for the A vs B SDK.
  *
  * Requires symfony/framework-bundle (listed as a suggested dependency).
  *

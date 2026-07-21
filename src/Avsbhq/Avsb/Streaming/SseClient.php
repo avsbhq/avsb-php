@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Streaming;
 
 /**
- * SseClient — Server-Sent Events client for datafile streaming.
+ * SseClient: Server-Sent Events client for datafile streaming.
  *
  * Connects to the A vs B streaming endpoint using ext-curl and fires
  * the $onUpdate callback whenever a new datafile payload arrives.
@@ -16,7 +16,7 @@ namespace Avsbhq\Avsb\Streaming;
  * a CLI daemon) is the caller's responsibility.
  *
  * Note: ext-curl must be enabled. Async streaming requires a long-lived
- * PHP process — this client is not suitable for FPM/CGI request handlers.
+ * PHP process; this client is not suitable for FPM/CGI request handlers.
  */
 final class SseClient
 {

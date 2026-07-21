@@ -8,7 +8,7 @@ use Avsbhq\Avsb\AvsbServer;
 use Avsbhq\Avsb\EvalContext;
 
 /**
- * EventListener — Symfony kernel.request listener that binds an EvalContext
+ * EventListener: Symfony kernel.request listener that binds an EvalContext
  * to the current request attributes.
  *
  * Once bound, controllers can retrieve the context via:

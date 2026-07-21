@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Sticky;
 
 /**
- * RedisStickyBucketService — Redis-backed sticky assignment store.
+ * RedisStickyBucketService: Redis-backed sticky assignment store.
  *
  * Requires either predis/predis (composer suggest) or the ext-redis PHP
  * extension. Pass any object that exposes get(string): ?string and
- * set(string, string): void through the $client parameter — both predis
+ * set(string, string): void through the $client parameter; both predis
  * and ext-redis satisfy this interface without additional adapters.
  *
  * Key format: "avsb:sticky:{userId}:{flagKey}"

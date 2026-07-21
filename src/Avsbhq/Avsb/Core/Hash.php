@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * MurmurHash3_x86_32 — deterministic 32-bit hash for visitor bucketing.
+ * MurmurHash3_x86_32: deterministic 32-bit hash for visitor bucketing.
  *
  * Direct port of hash.ts from @avsbhq/core. All arithmetic uses explicit
  * 32-bit masking (& 0xFFFFFFFF) to match JavaScript's 32-bit integer

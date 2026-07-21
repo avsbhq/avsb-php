@@ -8,7 +8,7 @@ use Avsbhq\Avsb\AvsbServer;
 use Avsbhq\Avsb\EvalContext;
 
 /**
- * Middleware — Laravel route middleware that binds an EvalContext to
+ * Middleware: Laravel route middleware that binds an EvalContext to
  * the current request so controllers can call $server->getBoolFlag(...)
  * without manually constructing a context.
  *

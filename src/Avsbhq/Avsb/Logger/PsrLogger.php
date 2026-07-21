@@ -9,7 +9,7 @@ use Psr\Log\LogLevel;
 use Stringable;
 
 /**
- * PsrLogger — thin adapter that prefixes all messages with the SDK tag.
+ * PsrLogger: thin adapter that prefixes all messages with the SDK tag.
  *
  * Wraps any PSR-3 LoggerInterface and forwards calls with a consistent
  * '[avsb]' prefix in the message so SDK log lines are filterable.

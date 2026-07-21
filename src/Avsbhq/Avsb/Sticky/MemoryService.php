@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Sticky;
 
 /**
- * StickyBucketService interface — PHP equivalent of §2.4 StickyBucketService.
+ * StickyBucketService interface: PHP equivalent of §2.4 StickyBucketService.
  *
  * Sticky bucketing persists a user's variation assignment so they always
  * receive the same variation across sessions even if traffic allocations
@@ -14,14 +14,14 @@ namespace Avsbhq\Avsb\Sticky;
 interface StickyBucketService
 {
     /**
-     * Synchronous lookup — returns the sticky assignment array or null.
+     * Synchronous lookup: returns the sticky assignment array or null.
      *
      * @return array{variationId: string, ruleId: string, ruleType: string, assignedAt: int}|null
      */
     public function lookup(string $userId, string $flagKey): ?array;
 
     /**
-     * Persist an assignment. Fire-and-forget — implementations are free to
+     * Persist an assignment. Fire-and-forget: implementations are free to
      * buffer or write asynchronously.
      *
      * @param array{variationId: string, ruleId: string, ruleType: string, assignedAt: int} $assignment
@@ -30,7 +30,7 @@ interface StickyBucketService
 }
 
 /**
- * InMemoryStickyBucketService — in-process sticky bucket store.
+ * InMemoryStickyBucketService: in-process sticky bucket store.
  *
  * Suitable for testing, CLI scripts, or single-request CLI contexts where
  * persistence is not required between PHP process invocations.

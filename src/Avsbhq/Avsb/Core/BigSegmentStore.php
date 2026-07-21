@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * BigSegmentStore interface — PHP equivalent of §2.9 BigSegmentStore.
+ * BigSegmentStore interface: PHP equivalent of §2.9 BigSegmentStore.
  *
  * Big-segment stores contain pre-computed segment membership data that is
  * too large to embed inside the datafile. Implementations must be
@@ -30,13 +30,13 @@ interface BigSegmentStore
     public function membership(string $contextKey): array;
 
     /**
-     * Health probe — returns false when the store is stale or unavailable.
+     * Health probe: returns false when the store is stale or unavailable.
      */
     public function isHealthy(): bool;
 }
 
 /**
- * InMemoryBigSegmentStore — reference in-memory implementation.
+ * InMemoryBigSegmentStore: reference in-memory implementation.
  *
  * Pre-loads all segment membership data into a nested associative array.
  * Suitable for testing and for scenarios where the full dataset fits in RAM.

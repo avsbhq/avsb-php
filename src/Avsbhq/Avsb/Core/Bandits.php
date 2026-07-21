@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * Bandit evaluation engine — PHP port of bandits.ts from @avsbhq/core.
+ * Bandit evaluation engine: PHP port of bandits.ts from @avsbhq/core.
  *
  * Design invariants (do not regress):
  *   - Algorithms are pure functions of (perAction, actions, hashBucket?).
- *   - No random() — every stochastic step is seeded from murmurhash3 so a
+ *   - No random(): every stochastic step is seeded from murmurhash3 so a
  *     (banditKey, context) pair produces a stable decision.
  *   - Tie-breaking is alphabetical on action id, also for determinism.
  */
@@ -86,7 +86,7 @@ final class Bandits
     }
 
     /**
-     * Thompson sampling — seeded, deterministic.
+     * Thompson sampling: seeded, deterministic.
      *
      * @param array $modelPerAction
      * @param array $actions
@@ -171,7 +171,7 @@ final class Bandits
     }
 
     /**
-     * Seeded Gaussian — Box-Muller from two murmurhash3 seeds.
+     * Seeded Gaussian: Box-Muller from two murmurhash3 seeds.
      * Exported so tests can assert the seeded pipeline directly.
      */
     public static function seededGaussian(int $seed): float

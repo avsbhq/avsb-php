@@ -7,7 +7,7 @@ namespace Avsbhq\Avsb\TestUtils;
 use Avsbhq\Avsb\AvsbServer;
 
 /**
- * InMemoryDatafileLoader — test utility for constructing AvsbServer
+ * InMemoryDatafileLoader: test utility for constructing AvsbServer
  * instances from in-memory or file-based datafile fixtures.
  *
  * Use this in tests where you need a fully-configured server without
@@ -51,7 +51,7 @@ final class InMemoryDatafileLoader
 
     /**
      * Load a raw datafile array from a JSON file without constructing a
-     * server — useful when you need to inspect or mutate the datafile
+     * server, useful when you need to inspect or mutate the datafile
      * before passing it to AvsbServer.
      *
      * @throws \RuntimeException When the file cannot be read.

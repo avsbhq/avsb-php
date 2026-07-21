@@ -8,7 +8,7 @@ use Avsbhq\Avsb\Core\EvaluationSource;
 use Avsbhq\Avsb\Core\RuleType;
 
 /**
- * Flag — readonly value object returned from every get*Flag call.
+ * Flag: readonly value object returned from every get*Flag call.
  *
  * Mirrors §2.2 Flag<T> from types.ts. All fields are readonly. The two
  * convenience accessors (isEnabled / exists) match the TS interface exactly.
@@ -57,7 +57,7 @@ readonly class Flag
     /**
      * Build a Flag instance from the raw evaluator result array.
      *
-     * @internal Used by AvsbServer — not part of the public API contract.
+     * @internal Used by AvsbServer; not part of the public API contract.
      */
     public static function fromEvaluatorResult(array $result, int $durationMicros): self
     {

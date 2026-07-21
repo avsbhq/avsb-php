@@ -8,7 +8,7 @@ use Avsbhq\Avsb\Core\EvaluationSource;
 use Avsbhq\Avsb\Core\RuleType;
 
 /**
- * DecisionLogEntry — readonly value object for a single flag decision.
+ * DecisionLogEntry: readonly value object for a single flag decision.
  *
  * Mirrors §2.5 DecisionLogEntry from types.ts. Private attributes are
  * redacted in the value and reasons fields per the spec.
@@ -114,7 +114,7 @@ readonly class DecisionLogEntry
 }
 
 /**
- * DecisionLog — collects DecisionLogEntry values for the lifetime of a
+ * DecisionLog: collects DecisionLogEntry values for the lifetime of a
  * request or server instance. Entries are append-only.
  */
 final class DecisionLog

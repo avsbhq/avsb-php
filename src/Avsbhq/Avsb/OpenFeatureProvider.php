@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb;
 
 /**
- * OpenFeatureProvider — A vs B provider for the OpenFeature PHP SDK.
+ * OpenFeatureProvider: A vs B provider for the OpenFeature PHP SDK.
  *
  * Implements the structural contract that the OpenFeature PHP SDK expects
  * from a feature-flag provider. Because openfeature/sdk-php is listed as a

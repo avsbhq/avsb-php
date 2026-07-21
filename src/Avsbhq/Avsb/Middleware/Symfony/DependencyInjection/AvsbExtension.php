@@ -7,7 +7,7 @@ namespace Avsbhq\Avsb\Middleware\Symfony\DependencyInjection;
 use Avsbhq\Avsb\AvsbServer;
 
 /**
- * AvsbExtension — Symfony DI extension that wires AvsbServer into the
+ * AvsbExtension: Symfony DI extension that wires AvsbServer into the
  * service container.
  *
  * Registers:

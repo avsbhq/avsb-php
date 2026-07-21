@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb;
 
 /**
- * EvalContext — readonly value object wrapping the wire-protocol context
+ * EvalContext: readonly value object wrapping the wire-protocol context
  * array used throughout the PHP SDK.
  *
  * Mirrors the §2.1 EvalContext shape from types.ts. The underlying array

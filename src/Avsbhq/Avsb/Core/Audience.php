@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * Audience evaluator — PHP port of audience.ts from @avsbhq/core.
+ * Audience evaluator: PHP port of audience.ts from @avsbhq/core.
  *
  * Only server-evaluable condition types are implemented here:
  * CUSTOM_ATTRIBUTE, and multi-context-aware kinded lookups.

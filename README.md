@@ -1,4 +1,4 @@
-# avsbhq/avsb — PHP SDK
+# avsbhq/avsb: PHP SDK
 
 Server-side PHP SDK for the [A vs B](https://app.avsb.cloud) feature-flag and experimentation platform.
 
@@ -55,7 +55,7 @@ echo $flag->getSource();       // "rule" / "default" / "not_found" / ...
 
 ## 3. SDK keys
 
-Get a **server SDK key** from your A vs B project's Environments page. Store it in your environment — never hard-code it.
+Get a **server SDK key** from your A vs B project's Environments page. Store it in your environment; never hard-code it.
 
 ```bash
 export AVSB_SDK_KEY=sdk-...
@@ -78,7 +78,7 @@ Never use the public (client-side) SDK key in server code. Server SDK keys carry
 
 `EvalContext` is a readonly value object. All construction goes through static factory methods.
 
-### `EvalContext::user(key, attributes, kind)` — single-kind context
+### `EvalContext::user(key, attributes, kind)`: single-kind context
 
 ```php
 use Avsbhq\Avsb\EvalContext;
@@ -95,13 +95,13 @@ The third parameter `$kind` defaults to `'user'`. Pass a different value to buil
 $orgContext = EvalContext::user('acme-corp', ['tier' => 'enterprise'], 'organization');
 ```
 
-### `EvalContext::fromArray(array)` — wrap a raw decoded JSON array
+### `EvalContext::fromArray(array)`: wrap a raw decoded JSON array
 
 ```php
 $context = EvalContext::fromArray($request->get('context'));
 ```
 
-### `identify(context)` — notify downstream integrations
+### `identify(context)`: notify downstream integrations
 
 ```php
 $server->identify($context);
@@ -139,23 +139,23 @@ $config     = $server->getJsonFlag('api-config',    [],      $context);
 
 A `$defaultValue` is required on every call. It is returned when the flag is not found, the datafile is not loaded, or an evaluation error occurs.
 
-### `Flag` — full evaluation envelope
+### `Flag`: full evaluation envelope
 
 Every `get*Flag` method returns an `Avsbhq\Avsb\Flag` instance:
 
 ```php
 $flag = $server->getBoolFlag('checkout-v2', false, $context);
 
-$flag->getValue();        // mixed — the evaluated value
-$flag->getVariationKey(); // string|null — matched variation key
-$flag->getSource();       // string — "rule"|"holdout"|"default"|"not_found"|...
-$flag->getRuleId();       // string|null — matched rule id
-$flag->getRuleType();     // string|null — "ab_test"|"targeted_delivery"|"holdout"|"bandit"
+$flag->getValue();        // mixed: the evaluated value
+$flag->getVariationKey(); // string|null: matched variation key
+$flag->getSource();       // string: "rule"|"holdout"|"default"|"not_found"|...
+$flag->getRuleId();       // string|null: matched rule id
+$flag->getRuleType();     // string|null: "ab_test"|"targeted_delivery"|"holdout"|"bandit"
 $flag->getReasons();      // array<string>
-$flag->getEvaluatedAt();  // int — ms epoch
-$flag->getDurationMicros(); // int — microseconds in evaluator
-$flag->isEnabled();       // bool — source=="rule" && truthy value
-$flag->exists();          // bool — source != "not_found"
+$flag->getEvaluatedAt();  // int: ms epoch
+$flag->getDurationMicros(); // int: microseconds in evaluator
+$flag->isEnabled();       // bool: source=="rule" && truthy value
+$flag->exists();          // bool: source != "not_found"
 ```
 
 ### Decision log
@@ -173,7 +173,7 @@ foreach ($log->getEntries() as $entry) {
 }
 ```
 
-Each `DecisionLogEntry` contains the same fields as `Flag` plus `contextSummary` (kind + key only — attributes are never logged).
+Each `DecisionLogEntry` contains the same fields as `Flag` plus `contextSummary` (kind + key only; attributes are never logged).
 
 ---
 
@@ -217,7 +217,7 @@ public function __construct(
 )
 ```
 
-Evaluation methods do not throw on flag-not-found or type mismatch — they return the supplied `$defaultValue` with `source: "not_found"` or `source: "default"`. Exceptions are only thrown for programmer errors (e.g. passing `null` as `$defaultValue` where the type annotation requires a scalar).
+Evaluation methods do not throw on flag-not-found or type mismatch. They return the supplied `$defaultValue` with `source: "not_found"` or `source: "default"`. Exceptions are only thrown for programmer errors (e.g. passing `null` as `$defaultValue` where the type annotation requires a scalar).
 
 ---
 
@@ -423,7 +423,7 @@ $value   = $server->getBoolFlag('checkout-v2', false, $context)->getValue();
 ```
 
 ```php
-// LaunchDarkly — multi-context
+// LaunchDarkly (multi-context)
 $multi = LDContext::createMulti(
     LDContext::create("alice"),
     LDContext::builder("acme")->kind("organization")->set("tier", "enterprise")->build()
@@ -431,7 +431,7 @@ $multi = LDContext::createMulti(
 ```
 
 ```php
-// A vs B — multi-context
+// A vs B (multi-context)
 $context = EvalContext::multi([
     'user'         => ['key' => 'alice', 'plan' => 'pro'],
     'organization' => ['key' => 'acme', 'tier' => 'enterprise'],

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * Context helpers — PHP port of context.ts from @avsbhq/core.
+ * Context helpers: PHP port of context.ts from @avsbhq/core.
  *
  * Operates on plain arrays that mirror the EvalContext wire shape:
  *   - Single context:  ['kind' => 'user', 'key' => 'alice', ...]
@@ -50,7 +50,7 @@ final class Context
 
     /**
      * Return an array of ['kind' => ..., 'key' => ...] pairs.
-     * Attributes are omitted — they may carry PII.
+     * Attributes are omitted because they may carry PII.
      */
     public static function contextSummary(array $ctx): array
     {

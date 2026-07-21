@@ -7,7 +7,7 @@ namespace Avsbhq\Avsb\Middleware\Laravel;
 use Avsbhq\Avsb\AvsbServer;
 
 /**
- * AvsbServiceProvider — Laravel service provider for the A vs B SDK.
+ * AvsbServiceProvider: Laravel service provider for the A vs B SDK.
  *
  * Registers AvsbServer as a singleton in the application container and
  * publishes the 'avsb' config stub.

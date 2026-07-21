@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * BanditModelStore interface — PHP equivalent of the TS BanditModelStore.
+ * BanditModelStore interface: PHP equivalent of the TS BanditModelStore.
  *
  * Implementations are responsible for persisting and serving the per-bandit
  * statistical model that drives algorithm selection.
@@ -20,7 +20,7 @@ interface BanditModelStore
     public function getModel(string $banditKey): ?array;
 
     /**
-     * Persist an updated model. Fire-and-forget — implementations may batch
+     * Persist an updated model. Fire-and-forget: implementations may batch
      * or persist asynchronously without affecting the evaluation hot-path.
      */
     public function updateModel(string $banditKey, array $model): void;
