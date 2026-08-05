@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Tests;
 
 use Avsbhq\Avsb\AvsbServer;
+use Avsbhq\Avsb\AvsbServerOptions;
 use Avsbhq\Avsb\EvalContext;
 use Avsbhq\Avsb\Middleware\Laravel\Facade;
 use Avsbhq\Avsb\Middleware\Laravel\Middleware;
@@ -21,7 +22,7 @@ final class MiddlewareLaravelTest extends TestCase
 {
     private function emptyServer(): AvsbServer
     {
-        return new AvsbServer([
+        return AvsbServer::fromDatafile([
             'version'         => 2,
             'projectType'     => 'FEATURE_FLAG',
             'sdkKey'          => 'test',
@@ -30,7 +31,7 @@ final class MiddlewareLaravelTest extends TestCase
             'collectEndpoint' => '',
             'flags'           => [],
             'audiences'       => [],
-        ]);
+        ], new AvsbServerOptions(events: false, heartbeat: false));
     }
 
     protected function tearDown(): void

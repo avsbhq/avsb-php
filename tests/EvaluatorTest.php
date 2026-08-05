@@ -104,7 +104,7 @@ final class EvaluatorTest extends TestCase
         ]);
         $df     = $this->datafileWith([$flag]);
         $result = Evaluator::evaluateFlag('my-flag', false, $this->userCtx('alice'), $df);
-        self::assertSame('override', $result['source']);
+        self::assertSame('datafileOverride', $result['source']);
         self::assertTrue($result['value']);
     }
 

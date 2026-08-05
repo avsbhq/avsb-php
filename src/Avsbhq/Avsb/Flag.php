@@ -5,25 +5,37 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb;
 
 use Avsbhq\Avsb\Core\EvaluationSource;
+use Avsbhq\Avsb\Core\JsSemantics;
 use Avsbhq\Avsb\Core\RuleType;
 
 /**
- * Flag: readonly value object returned from every get*Flag call.
+ * Flag: the result of one evaluation.
  *
- * Mirrors §2.2 Flag<T> from types.ts. All fields are readonly. The two
- * convenience accessors (isEnabled / exists) match the TS interface exactly.
+ * Every get*Flag call returns this object. All properties are readonly and
+ * public, so there are no getters to remember:
+ *
+ *   $flag->value            mixed             the evaluated value, your type
+ *   $flag->variationKey     string|null       null for default, not_found, not_ready
+ *   $flag->source           EvaluationSource  why this value
+ *   $flag->ruleId           string|null       the rule or holdout that decided
+ *   $flag->ruleType         RuleType|null     ab_test, targeted_delivery, holdout, bandit
+ *   $flag->reasons          list<string>      the decision trail, in order
+ *   $flag->evaluatedAt      int               milliseconds since the Unix epoch
+ *   $flag->durationMicros   int               microseconds spent evaluating
+ *   $flag->isEnabled()      bool
+ *   $flag->exists()         bool
  */
 readonly class Flag
 {
     /**
-     * @param mixed              $value          The variation value.
-     * @param string|null        $variationKey   Variation key, or null for default/not-found.
-     * @param EvaluationSource   $source         Why this value was produced.
-     * @param string|null        $ruleId         Matched rule id, or null.
-     * @param RuleType|null      $ruleType       Matched rule type, or null.
-     * @param string[]           $reasons        Structured reason strings.
-     * @param int                $evaluatedAt    ms-epoch when evaluated.
-     * @param int                $durationMicros µs elapsed in the evaluator.
+     * @param mixed $value
+     * @param string|null $variationKey
+     * @param EvaluationSource $source
+     * @param string|null $ruleId
+     * @param RuleType|null $ruleType
+     * @param list<string> $reasons
+     * @param int $evaluatedAt    ms since the Unix epoch
+     * @param int $durationMicros microseconds spent in the evaluator
      */
     public function __construct(
         public mixed $value,
@@ -37,62 +49,63 @@ readonly class Flag
     ) {}
 
     /**
-     * Convenience: served by a rule and the value is truthy.
-     * Mirrors `isEnabled()` in the TS Flag interface.
+     * True when a real decision produced this value AND the value is truthy.
+     *
+     * Both halves matter, and both are cross-language locks:
+     *
+     *  - "A real decision" means rule, holdout, bandit, sticky,
+     *    datafileOverride, or runtimeOverride. A flag serving its default
+     *    variation is NOT enabled however truthy that default is, and an
+     *    uninitialised SDK is never enabled.
+     *  - "Truthy" means JavaScript truthy, because the reference evaluator is
+     *    the TypeScript engine. The string "0" is truthy here, unlike in PHP,
+     *    and so is an empty array.
      */
     public function isEnabled(): bool
     {
-        return $this->variationKey !== null && (bool) $this->value;
+        return $this->source->isDecision() && JsSemantics::isTruthy($this->value);
     }
 
     /**
-     * Convenience: source !== 'not_found'.
-     * Mirrors `exists()` in the TS Flag interface.
+     * True when the flag key is known to exist in the datafile.
+     *
+     * False for not_found and not_ready. A disabled flag exists: the customer
+     * turned it off, which is not the same as it being absent. With no
+     * datafile loaded, existence is unknowable, so the honest answer is false
+     * rather than a guess.
      */
     public function exists(): bool
     {
-        return $this->source !== EvaluationSource::NotFound;
+        return !$this->source->isUnknownFlag();
     }
 
     /**
-     * Build a Flag instance from the raw evaluator result array.
+     * Build a Flag from the raw evaluator result array.
      *
+     * @param array<string, mixed> $result
      * @internal Used by AvsbServer; not part of the public API contract.
      */
     public static function fromEvaluatorResult(array $result, int $durationMicros): self
     {
         $rawSource = $result['source'] ?? 'not_found';
-        // Map the legacy 'override' source onto the public enum value.
-        $source = match ($rawSource) {
-            'override'        => EvaluationSource::DatafileOverride,
-            'runtime_override'=> EvaluationSource::RuntimeOverride,
-            'sticky'          => EvaluationSource::Sticky,
-            'rule'            => EvaluationSource::Rule,
-            'holdout'         => EvaluationSource::Holdout,
-            'bandit'          => EvaluationSource::Bandit,
-            'default'         => EvaluationSource::Default,
-            'not_found'       => EvaluationSource::NotFound,
-            'disabled'        => EvaluationSource::Disabled,
-            default           => EvaluationSource::NotFound,
-        };
+        $source = is_string($rawSource)
+            ? (EvaluationSource::tryFrom($rawSource) ?? EvaluationSource::NotFound)
+            : EvaluationSource::NotFound;
 
         $rawRuleType = $result['ruleType'] ?? null;
-        $ruleType = match ($rawRuleType) {
-            'targeted_delivery' => RuleType::TargetedDelivery,
-            'ab_test'           => RuleType::AbTest,
-            'holdout'           => RuleType::Holdout,
-            'bandit'            => RuleType::Bandit,
-            default             => null,
-        };
+        $ruleType = is_string($rawRuleType) ? RuleType::tryFrom($rawRuleType) : null;
+
+        /** @var list<string> $reasons */
+        $reasons = $result['reasons'] ?? [];
 
         return new self(
-            value:          $result['value'] ?? null,
-            variationKey:   $result['variationKey'] ?? null,
-            source:         $source,
-            ruleId:         $result['ruleId'] ?? null,
-            ruleType:       $ruleType,
-            reasons:        $result['reasons'] ?? [],
-            evaluatedAt:    (int) round(microtime(true) * 1000),
+            value: $result['value'] ?? null,
+            variationKey: $result['variationKey'] ?? null,
+            source: $source,
+            ruleId: $result['ruleId'] ?? null,
+            ruleType: $ruleType,
+            reasons: $reasons,
+            evaluatedAt: (int) round(microtime(true) * 1000),
             durationMicros: $durationMicros,
         );
     }

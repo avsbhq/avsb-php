@@ -5,22 +5,27 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\TestUtils;
 
 use Avsbhq\Avsb\AvsbServer;
+use Avsbhq\Avsb\AvsbServerOptions;
 
 /**
- * InMemoryDatafileLoader: test utility for constructing AvsbServer
- * instances from in-memory or file-based datafile fixtures.
+ * InMemoryDatafileLoader: builds an AvsbServer from a datafile fixture.
  *
- * Use this in tests where you need a fully-configured server without
- * making HTTP calls to the A vs B API.
+ * Every server it returns has events and heartbeats switched off, so a test
+ * suite never touches the network by accident.
  */
 final class InMemoryDatafileLoader
 {
     /**
      * Create an AvsbServer from a decoded PHP array.
+     *
+     * @param array<string, mixed> $datafile
      */
     public static function fromArray(array $datafile): AvsbServer
     {
-        return new AvsbServer($datafile);
+        return AvsbServer::fromDatafile($datafile, new AvsbServerOptions(
+            events: false,
+            heartbeat: false,
+        ));
     }
 
     /**
@@ -30,8 +35,10 @@ final class InMemoryDatafileLoader
      */
     public static function fromJson(string $json): AvsbServer
     {
+        /** @var array<string, mixed> $datafile */
         $datafile = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        return new AvsbServer($datafile);
+
+        return self::fromArray($datafile);
     }
 
     /**

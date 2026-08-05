@@ -6,111 +6,195 @@ namespace Avsbhq\Avsb\Tests;
 
 use Avsbhq\Avsb\Core\Evaluator;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
- * ConformanceTest — loads packages/avsb-conformance/fixtures/manifest.json
- * and asserts each case against the PHP evaluator.
+ * ConformanceTest — loads the conformance corpus manifest and asserts each
+ * case against the PHP evaluator.
  *
  * All cross-language SDKs MUST produce identical outputs for these cases.
  * Any divergence is a bucketing or evaluation bug.
+ *
+ * FAIL-HARD RULE (conformance README): a missing manifest, an empty manifest,
+ * or a missing per-case file throws. The provider used to return a bogus
+ * single row when the manifest was absent and `continue` past missing
+ * per-case files, so a corpus that had not been vendored into the published
+ * repo produced a green run over zero real cases.
+ *
+ * Fixture resolution prefers the monorepo copy and falls back to the copy
+ * vendored into this package, which is what the published repo carries.
  */
 final class ConformanceTest extends TestCase
 {
-    private string $fixturesDir;
-
-    protected function setUp(): void
+    /** @return string[] */
+    private static function fixtureCandidates(): array
     {
-        // Resolve fixtures path relative to this test file.
-        // tests/ → packages/avsb-php/ → packages/ → packages/avsb-conformance/fixtures/
-        $this->fixturesDir = dirname(__DIR__, 2) . '/avsb-conformance/fixtures';
+        return [
+            // Monorepo: packages/avsb-php/tests -> packages/avsb-conformance/fixtures
+            dirname(__DIR__, 2) . '/avsb-conformance/fixtures',
+            // Published repo: vendored copy shipped with this package.
+            __DIR__ . '/vendor/avsb-conformance/fixtures',
+        ];
     }
 
+    private static function fixturesDir(): string
+    {
+        foreach (self::fixtureCandidates() as $candidate) {
+            if (is_file($candidate . '/manifest.json')) {
+                return $candidate;
+            }
+        }
+
+        throw new RuntimeException(
+            "Conformance fixtures not found. Looked for manifest.json in:\n  "
+            . implode("\n  ", self::fixtureCandidates()) . "\n"
+            . 'In the monorepo, run `npm run generate` in packages/avsb-conformance. '
+            . 'For this repo standalone, run `npm run vendor` there and commit tests/vendor.'
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private static function readJsonFile(string $path, string $what): array
+    {
+        if (!is_file($path)) {
+            throw new RuntimeException(
+                "Conformance fixture missing: {$path} ({$what}). "
+                . 'Run `npm run generate` in packages/avsb-conformance.'
+            );
+        }
+
+        /** @var array<string, mixed> $decoded */
+        $decoded = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+        return $decoded;
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: string}> */
     public static function conformanceCaseProvider(): array
     {
-        $fixturesDir = dirname(__DIR__, 2) . '/avsb-conformance/fixtures';
-        $manifestPath = $fixturesDir . '/manifest.json';
+        $fixturesDir = self::fixturesDir();
+        $manifest    = self::readJsonFile($fixturesDir . '/manifest.json', 'manifest');
 
-        if (!file_exists($manifestPath)) {
-            return [['case_not_found' => []]];
+        if (!isset($manifest['cases']) || !is_array($manifest['cases']) || $manifest['cases'] === []) {
+            throw new RuntimeException(
+                "Conformance manifest at {$fixturesDir} lists no cases. "
+                . 'An empty corpus guarantees nothing.'
+            );
+        }
+        if (isset($manifest['caseCount']) && $manifest['caseCount'] !== count($manifest['cases'])) {
+            throw new RuntimeException(
+                'Conformance manifest says caseCount=' . $manifest['caseCount']
+                . ' but carries ' . count($manifest['cases']) . ' cases, so it was hand-edited.'
+            );
         }
 
-        $manifest = json_decode(file_get_contents($manifestPath), true, 512, JSON_THROW_ON_ERROR);
-        $cases    = [];
+        $cases = [];
         foreach ($manifest['cases'] as $entry) {
-            $expectedPath = $fixturesDir . '/' . $entry['expected'];
-            if (!file_exists($expectedPath)) {
-                continue;
+            $expected = self::readJsonFile(
+                $fixturesDir . '/' . $entry['expected'],
+                "manifest case {$entry['case']}"
+            );
+            if (($expected['case'] ?? null) !== $entry['case']) {
+                throw new RuntimeException(
+                    "Fixture {$entry['expected']} declares a different case id than the manifest."
+                );
             }
-            $expected = json_decode(file_get_contents($expectedPath), true, 512, JSON_THROW_ON_ERROR);
             $cases[$entry['case']] = [$expected, $fixturesDir];
         }
+
         return $cases;
     }
 
+    public function testManifestIsNotEmpty(): void
+    {
+        $fixturesDir = self::fixturesDir();
+        $manifest    = self::readJsonFile($fixturesDir . '/manifest.json', 'manifest');
+        self::assertNotEmpty($manifest['cases']);
+        self::assertSame(count($manifest['cases']), count(self::conformanceCaseProvider()));
+    }
+
     /**
+     * Fixture files the manifest does not name are renamed or deleted cases
+     * whose output lingers: they replay green against the engine that produced
+     * them while locking semantics nobody declares.
+     */
+    public function testNoOrphanFixtures(): void
+    {
+        $fixturesDir = self::fixturesDir();
+        $manifest    = self::readJsonFile($fixturesDir . '/manifest.json', 'manifest');
+
+        $named = [];
+        foreach ($manifest['cases'] as $entry) {
+            $named[$entry['case'] . '.json'] = true;
+        }
+
+        $orphans = [];
+        foreach (glob($fixturesDir . '/expected/*.json') ?: [] as $path) {
+            $name = basename($path);
+            if (!isset($named[$name])) {
+                $orphans[] = $name;
+            }
+        }
+
+        self::assertSame([], $orphans, 'fixtures not named by the manifest');
+    }
+
+    /**
+     * @param array<string, mixed> $expected
      * @dataProvider conformanceCaseProvider
      */
     public function testConformanceCase(array $expected, string $fixturesDir): void
     {
-        // Load datafile.
-        $datafilePath = $fixturesDir . '/' . $expected['datafile'];
-        self::assertFileExists($datafilePath, "Datafile not found: {$datafilePath}");
-        $datafile = json_decode(file_get_contents($datafilePath), true, 512, JSON_THROW_ON_ERROR);
+        $caseName = $expected['case'];
 
-        // Load context.
-        $contextPath = $fixturesDir . '/' . $expected['context'];
-        self::assertFileExists($contextPath, "Context not found: {$contextPath}");
-        $context = json_decode(file_get_contents($contextPath), true, 512, JSON_THROW_ON_ERROR);
+        $datafile = self::readJsonFile(
+            $fixturesDir . '/' . $expected['datafile'],
+            "datafile for {$caseName}"
+        );
+        $context = self::readJsonFile(
+            $fixturesDir . '/' . $expected['context'],
+            "context for {$caseName}"
+        );
 
         $flagKey      = $expected['flagKey'];
         $defaultValue = $expected['defaultValue'];
         $exp          = $expected['expected'];
 
+        // Reasons are part of the corpus, so the harness always collects them.
         $reasons = [];
         $result  = Evaluator::evaluateFlag($flagKey, $defaultValue, $context, $datafile, $reasons);
 
-        $caseName = $expected['case'];
-
-        // Assert required fields.
+        // Every field is asserted unconditionally. A fixture missing one is a
+        // malformed fixture, not a licence to skip the check.
         self::assertSame(
             $exp['value'],
             $result['value'],
             "Case '{$caseName}': value mismatch. Got: " . json_encode($result['value'])
         );
         self::assertSame(
-            $exp['variationKey'] ?? null,
+            $exp['variationKey'],
             $result['variationKey'],
             "Case '{$caseName}': variationKey mismatch"
         );
-
-        // source is present in most fixtures — skip assertion when absent
-        // (some fixtures intentionally omit it to be forward-compatible).
-        if (array_key_exists('source', $exp)) {
-            self::assertSame(
-                $exp['source'],
-                $result['source'],
-                "Case '{$caseName}': source mismatch"
-            );
-        }
-
         self::assertSame(
-            $exp['ruleId'] ?? null,
+            $exp['source'],
+            $result['source'],
+            "Case '{$caseName}': source mismatch"
+        );
+        self::assertSame(
+            $exp['ruleId'],
             $result['ruleId'],
             "Case '{$caseName}': ruleId mismatch"
         );
         self::assertSame(
-            $exp['ruleType'] ?? null,
+            $exp['ruleType'],
             $result['ruleType'],
             "Case '{$caseName}': ruleType mismatch"
         );
-
-        // Reasons are compared when present in the fixture.
-        if (isset($exp['reasons'])) {
-            self::assertSame(
-                $exp['reasons'],
-                $result['reasons'],
-                "Case '{$caseName}': reasons mismatch"
-            );
-        }
+        // Exact, ordered comparison of the decision trail (spec section 1.4).
+        self::assertSame(
+            $exp['reasons'],
+            $result['reasons'],
+            "Case '{$caseName}': reasons mismatch"
+        );
     }
 }

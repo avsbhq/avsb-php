@@ -58,9 +58,11 @@ final class Bandits
             ];
         }
 
-        // Exploit branch — pick the highest mean, alphabetical tie-break.
+        // Exploit branch: pick the highest mean, alphabetical tie-break.
+        // Starting at -INF matches the reference; the previous sentinel was a
+        // very large negative number that only happened to work.
         $bestId   = null;
-        $bestMean = PHP_FLOAT_EPSILON * -1e300;
+        $bestMean = -INF;
         $bestCount = 0;
 
         foreach ($sorted as $action) {

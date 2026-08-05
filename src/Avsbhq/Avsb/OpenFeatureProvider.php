@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Avsbhq\Avsb;
 
+use Avsbhq\Avsb\Core\EvaluationSource;
+
 /**
  * OpenFeatureProvider: A vs B provider for the OpenFeature PHP SDK.
  *
@@ -122,14 +124,53 @@ final class OpenFeatureProvider
     /**
      * Build an OpenFeature ResolutionDetails-compatible associative array
      * from a Flag value object.
+     *
+     * Sources map onto OpenFeature's reason vocabulary rather than being
+     * passed through raw, and an SDK with no datafile loaded is
+     * PROVIDER_NOT_READY: telling that apart from a plain default is the whole
+     * point of the not_ready source.
+     *
+     * @return array<string, mixed>
      */
     private function resolution(Flag $flag): array
     {
+        if ($flag->source === EvaluationSource::NotReady) {
+            return [
+                'value' => $flag->value,
+                'variant' => null,
+                'reason' => 'ERROR',
+                'errorCode' => 'PROVIDER_NOT_READY',
+                'errorMessage' => 'The A vs B SDK has no datafile loaded. Check '
+                    . 'AvsbServer::initResult() for why.',
+                'flagMetadata' => ['reasons' => $flag->reasons],
+            ];
+        }
+
         return [
-            'value'       => $flag->value,
-            'variant'     => $flag->variationKey,
-            'reason'      => $flag->source->value,
-            'flagMetadata'=> ['ruleId' => $flag->ruleId, 'reasons' => $flag->reasons],
+            'value' => $flag->value,
+            'variant' => $flag->variationKey,
+            'reason' => self::openFeatureReason($flag->source),
+            'flagMetadata' => [
+                'ruleId' => $flag->ruleId,
+                'source' => $flag->source->value,
+                'reasons' => $flag->reasons,
+            ],
         ];
+    }
+
+    private static function openFeatureReason(EvaluationSource $source): string
+    {
+        return match ($source) {
+            EvaluationSource::Rule,
+            EvaluationSource::Holdout,
+            EvaluationSource::Bandit => 'TARGETING_MATCH',
+            EvaluationSource::Sticky => 'CACHED',
+            EvaluationSource::DatafileOverride,
+            EvaluationSource::RuntimeOverride => 'STATIC',
+            EvaluationSource::Disabled => 'DISABLED',
+            EvaluationSource::Default,
+            EvaluationSource::NotFound => 'DEFAULT',
+            EvaluationSource::NotReady => 'ERROR',
+        };
     }
 }

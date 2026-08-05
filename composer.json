@@ -4,7 +4,14 @@
   "type": "library",
   "license": "MIT",
   "homepage": "https://github.com/avsbhq/avsb-php",
-  "keywords": ["feature-flags", "experimentation", "ab-testing", "openfeature", "laravel", "symfony"],
+  "keywords": [
+    "feature-flags",
+    "experimentation",
+    "ab-testing",
+    "openfeature",
+    "laravel",
+    "symfony"
+  ],
   "authors": [
     {
       "name": "AvsB Platform",
@@ -28,7 +35,9 @@
   "suggest": {
     "laravel/framework": "For the Laravel ServiceProvider and Facade",
     "symfony/framework-bundle": "For the Symfony Bundle and EventListener",
-    "predis/predis": "For the RedisStickyBucketService"
+    "predis/predis": "For the RedisStickyBucketService",
+    "psr/http-client": "For Psr18Transport, which sends A vs B requests through the PSR-18 client you already have (Guzzle, Symfony HttpClient) so your middleware and proxy settings apply",
+    "psr/http-factory": "For Psr18Transport, which needs a PSR-17 request factory (plus a stream factory for POST bodies)"
   },
   "autoload": {
     "psr-4": {

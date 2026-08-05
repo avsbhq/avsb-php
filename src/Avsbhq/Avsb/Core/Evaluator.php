@@ -7,13 +7,18 @@ namespace Avsbhq\Avsb\Core;
 /**
  * Flag evaluator: PHP port of evaluate.ts from @avsbhq/core.
  *
- * Evaluation order (mirrors the TS implementation exactly):
- *   1. Flag not found → not_found
- *   2. Flag disabled  → disabled (serves defaultVariationId value)
- *   3. User override  → override
- *   4. Holdout check  → holdout
- *   5. Rules loop     → rule (targeted_delivery or ab_test, first match)
- *   6. Default        → default
+ * Evaluation order, mirroring the reference step for step and locked by the
+ * conformance corpus including the exact reason strings in their exact order:
+ *
+ *   1. Flag not found  -> not_found
+ *   2. Flag disabled   -> disabled (serves the default variation's value)
+ *   3. User override   -> datafileOverride
+ *   4. Holdout         -> holdout
+ *   5. Rules, in order -> rule (targeted_delivery, ab_test) or bandit
+ *   6. Default         -> default
+ *
+ * Every skipped rule appends a reason. A rule that disappears from the
+ * decision trail is the silent drop the spec bans.
  */
 final class Evaluator
 {
@@ -21,10 +26,14 @@ final class Evaluator
      * Evaluate a flag key against the datafile and context.
      *
      * @param string $flagKey
-     * @param mixed  $defaultValue  Caller-supplied fallback.
-     * @param array  $context       EvalContext array (single or multi).
-     * @param array  $datafile      Decoded FlagDatafile array.
-     * @param array  $reasons       Mutable reasons accumulator (appended in-place).
+     * @param mixed $defaultValue            caller-supplied fallback
+     * @param array<string, mixed> $context  EvalContext array, single or multi
+     * @param array<string, mixed> $datafile decoded FlagDatafile array
+     * @param list<string> $reasons          mutable accumulator, appended in place
+     * @param callable(array<string, mixed>): void|null $onExposure receives an
+     *        exposure payload when an ab_test, bandit, or holdout decision is served
+     * @param BanditModelStore|null $banditModelStore when null, bandit rules run
+     *        their cold-start policy instead of being skipped
      *
      * @return array{
      *   value: mixed,
@@ -33,7 +42,7 @@ final class Evaluator
      *   ruleId: string|null,
      *   ruleType: string|null,
      *   flagKey: string,
-     *   reasons: string[]
+     *   reasons: list<string>
      * }
      */
     public static function evaluateFlag(
@@ -41,12 +50,15 @@ final class Evaluator
         mixed $defaultValue,
         array $context,
         array $datafile,
-        array &$reasons = []
+        array &$reasons = [],
+        ?callable $onExposure = null,
+        ?BanditModelStore $banditModelStore = null
     ): array {
         // 1. FIND FLAG
         $flag = self::findFlag($datafile['flags'] ?? [], $flagKey);
         if ($flag === null) {
             $reasons[] = "flag \"{$flagKey}\" not found in datafile";
+
             return self::result($defaultValue, null, 'not_found', null, null, $flagKey, $reasons);
         }
 
@@ -54,6 +66,7 @@ final class Evaluator
         if (!($flag['enabled'] ?? true)) {
             $reasons[] = "flag \"{$flagKey}\" is disabled, returning default variation";
             $defaultVar = self::getVariationValue($flag, $flag['defaultVariationId'] ?? '');
+
             return self::result(
                 $defaultVar !== null ? $defaultVar['value'] : $defaultValue,
                 $defaultVar !== null ? $defaultVar['key'] : null,
@@ -65,10 +78,10 @@ final class Evaluator
             );
         }
 
-        // 3. CHECK OVERRIDES — matched on the primary context's key.
+        // 3. CHECK OVERRIDES, matched on the primary context's key.
         $primaryKey = Context::bucketingKey($context, 'user');
         if ($primaryKey === '') {
-            $primary    = Context::primaryContext($context);
+            $primary = Context::primaryContext($context);
             $primaryKey = (string) ($primary['key'] ?? '');
         }
 
@@ -76,10 +89,13 @@ final class Evaluator
             if (($override['userId'] ?? null) === $primaryKey) {
                 $reasons[] = "matched user override for userId=\"{$primaryKey}\"";
                 $overrideVar = self::getVariationValue($flag, $override['variationId'] ?? '');
+
                 return self::result(
                     $overrideVar !== null ? $overrideVar['value'] : $defaultValue,
                     $overrideVar !== null ? $overrideVar['key'] : null,
-                    'override',
+                    // The public spelling. `override` is an internal evaluator
+                    // name in other ports and must never reach a caller.
+                    'datafileOverride',
                     null,
                     null,
                     $flagKey,
@@ -88,29 +104,30 @@ final class Evaluator
             }
         }
 
-        // 4. HOLDOUT CHECK
+        // 4. HOLDOUT CHECK, between overrides and the rules loop so explicit
+        //    operator intent still wins while every rule honours the holdout.
         $holdoutResult = Holdouts::evaluateHoldout($context, $flag['id'] ?? '', $datafile);
         if ($holdoutResult['heldOut'] && isset($holdoutResult['holdout'])) {
-            $holdout    = $holdoutResult['holdout'];
-            $targetVarId = $holdoutResult['variationId'] ?? $flag['defaultVariationId'] ?? '';
-            $holdoutVar  = self::getVariationValue($flag, $targetVarId);
-            $reasons[]   = "held out by holdout \"{$holdout['key']}\", serving default variation \"{$holdoutVar['key'] ?? $targetVarId}\"";
-            return self::result(
-                $holdoutVar !== null ? $holdoutVar['value'] : $defaultValue,
-                $holdoutVar !== null ? $holdoutVar['key'] : null,
-                'holdout',
-                $holdout['id'],
-                'holdout',
+            return self::serveHoldout(
+                $flag,
                 $flagKey,
-                $reasons
+                $defaultValue,
+                $holdoutResult,
+                $primaryKey,
+                $reasons,
+                $onExposure
             );
         }
 
-        // Build audience map for O(1) lookups.
+        // Audience lookup, built once per evaluation.
         $audienceMap = [];
-        foreach ($datafile['audiences'] ?? [] as $aud) {
-            $audienceMap[$aud['id']] = $aud;
+        foreach ($datafile['audiences'] ?? [] as $audience) {
+            $audienceMap[$audience['id']] = $audience;
         }
+        $currencyExponent = isset($datafile['currencyExponent'])
+            && is_int($datafile['currencyExponent'])
+                ? $datafile['currencyExponent']
+                : null;
 
         // 5. EVALUATE RULES (first match wins)
         foreach ($flag['rules'] ?? [] as $rule) {
@@ -119,17 +136,19 @@ final class Evaluator
                 continue;
             }
 
-            $hashPath  = $rule['hashAttribute'] ?? 'userId';
-            $resolved  = Context::resolveDottedAttribute($context, $hashPath);
-            $hashValue = ($resolved === null) ? '' : (string) $resolved;
+            $hashPath = $rule['hashAttribute'] ?? 'userId';
+            $resolved = Context::resolveDottedAttribute($context, $hashPath);
+            $hashValue = $resolved === null ? '' : self::stringify($resolved);
 
             // a. AUDIENCE CHECK
             $audienceIds = $rule['audienceIds'] ?? [];
             if (!empty($audienceIds)) {
                 $matched = false;
-                foreach ($audienceIds as $audId) {
-                    $audience = $audienceMap[$audId] ?? null;
-                    if ($audience !== null && Audience::evaluateAudience($audience, $context)) {
+                foreach ($audienceIds as $audienceId) {
+                    $audience = $audienceMap[$audienceId] ?? null;
+                    if ($audience !== null
+                        && Audience::evaluateAudience($audience, $context, $currencyExponent)
+                    ) {
                         $matched = true;
                         break;
                     }
@@ -146,8 +165,13 @@ final class Evaluator
                     if (empty($rule['variations'])) {
                         continue 2;
                     }
-                    $targetVar = self::getVariationValue($flag, $rule['variations'][0]['variationId'] ?? '');
-                    $reasons[] = "rule \"{$rule['id']}\" matched (targeted_delivery), serving variation \"{$targetVar['key'] ?? ''}\"";
+                    $targetVar = self::getVariationValue(
+                        $flag,
+                        $rule['variations'][0]['variationId'] ?? ''
+                    );
+                    $reasons[] = "rule \"{$rule['id']}\" matched (targeted_delivery), "
+                        . 'serving variation "' . self::keyText($targetVar) . '"';
+
                     return self::result(
                         $targetVar !== null ? $targetVar['value'] : $defaultValue,
                         $targetVar !== null ? $targetVar['key'] : null,
@@ -159,37 +183,45 @@ final class Evaluator
                     );
 
                 case 'ab_test':
-                    // Traffic allocation check.
-                    $allocHash = Hash::murmurhash3("{$hashValue}{$flagKey}__{$rule['id']}") % 10000;
-                    $trafficAllocation = $rule['trafficAllocation'] ?? null;
-                    if ($trafficAllocation !== null) {
-                        $threshold = (float) $trafficAllocation * 10000;
-                        if ($allocHash >= $threshold) {
-                            $reasons[] = "rule \"{$rule['id']}\" excluded by traffic allocation (hash {$allocHash} >= threshold {$threshold})";
-                            continue 2;
-                        }
+                    $abResult = AbTestRule::evaluate(
+                        $flag,
+                        $rule,
+                        $flagKey,
+                        $defaultValue,
+                        $hashValue,
+                        $reasons,
+                        $onExposure
+                    );
+                    if ($abResult === null) {
+                        continue 2;
                     }
 
-                    // Variation assignment.
-                    $hash       = Hash::murmurhash3("{$hashValue}{$flagKey}") % 10000;
-                    $cumulative = 0.0;
-                    foreach ($rule['variations'] ?? [] as $rv) {
-                        $cumulative += (float) ($rv['percentage'] ?? 0) * 10000;
-                        $cumulativeInt = (int) $cumulative;
-                        if ($hash < $cumulativeInt) {
-                            $expVar    = self::getVariationValue($flag, $rv['variationId'] ?? '');
-                            $reasons[] = "rule \"{$rule['id']}\" matched (ab_test), bucketed into variation \"{$expVar['key'] ?? ''}\" (hash {$hash}/{$cumulativeInt})";
-                            return self::result(
-                                $expVar !== null ? $expVar['value'] : $defaultValue,
-                                $expVar !== null ? $expVar['key'] : null,
-                                'rule',
-                                $rule['id'],
-                                'ab_test',
-                                $flagKey,
-                                $reasons
-                            );
-                        }
+                    return $abResult;
+
+                case 'bandit':
+                    $banditResult = BanditDispatch::evaluate(
+                        $flag,
+                        $rule,
+                        $flagKey,
+                        $hashValue,
+                        $context,
+                        $datafile,
+                        $reasons,
+                        $onExposure,
+                        $banditModelStore
+                    );
+                    if ($banditResult === null) {
+                        continue 2;
                     }
+
+                    return $banditResult;
+
+                default:
+                    // Unknown rule type on the wire: name it rather than
+                    // dropping it.
+                    $type = is_string($rule['type'] ?? null) ? $rule['type'] : '';
+                    $reasons[] = "rule \"{$rule['id']}\" skipped "
+                        . "(unsupported rule type \"{$type}\")";
                     continue 2;
             }
         }
@@ -197,6 +229,7 @@ final class Evaluator
         // 6. DEFAULT
         $reasons[] = 'no rules matched, returning default variation';
         $defaultVar = self::getVariationValue($flag, $flag['defaultVariationId'] ?? '');
+
         return self::result(
             $defaultVar !== null ? $defaultVar['value'] : $defaultValue,
             $defaultVar !== null ? $defaultVar['key'] : null,
@@ -209,9 +242,66 @@ final class Evaluator
     }
 
     // ------------------------------------------------------------------
-    // Private helpers
+    // Rule branches
     // ------------------------------------------------------------------
 
+    /**
+     * @param array<string, mixed> $flag
+     * @param array<string, mixed> $holdoutResult
+     * @param list<string> $reasons
+     * @return array<string, mixed>
+     */
+    private static function serveHoldout(
+        array $flag,
+        string $flagKey,
+        mixed $defaultValue,
+        array $holdoutResult,
+        string $primaryKey,
+        array &$reasons,
+        ?callable $onExposure
+    ): array {
+        $holdout = $holdoutResult['holdout'];
+        $targetVarId = $holdoutResult['variationId'] ?? $flag['defaultVariationId'] ?? '';
+        $holdoutVar = self::getVariationValue($flag, $targetVarId);
+
+        if ($onExposure !== null) {
+            $onExposure([
+                'visitorId' => $primaryKey,
+                'experimentId' => $holdout['id'],
+                'variationId' => $targetVarId,
+                'eventName' => 'flag_holdout_exposure',
+                'revenue' => null,
+                'timestamp' => self::nowMs(),
+                'pageUrl' => '',
+                'properties' => [
+                    'flagKey' => $flagKey,
+                    'flagId' => $flag['id'] ?? '',
+                    'holdoutId' => $holdout['id'],
+                    'holdoutKey' => $holdout['key'],
+                ],
+            ]);
+        }
+
+        $servedKey = $holdoutVar !== null ? $holdoutVar['key'] : $targetVarId;
+        $reasons[] = "held out by holdout \"{$holdout['key']}\", "
+            . "serving default variation \"{$servedKey}\"";
+
+        return self::result(
+            $holdoutVar !== null ? $holdoutVar['value'] : $defaultValue,
+            $holdoutVar !== null ? $holdoutVar['key'] : null,
+            'holdout',
+            $holdout['id'],
+            'holdout',
+            $flagKey,
+            $reasons
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    /** @param array<int, array<string, mixed>> $flags */
     private static function findFlag(array $flags, string $key): ?array
     {
         foreach ($flags as $flag) {
@@ -219,22 +309,39 @@ final class Evaluator
                 return $flag;
             }
         }
+
         return null;
     }
 
     /**
+     * @param array<string, mixed> $flag
      * @return array{value: mixed, key: string}|null
      */
     private static function getVariationValue(array $flag, string $variationId): ?array
     {
-        foreach ($flag['variations'] ?? [] as $variation) {
-            if (($variation['id'] ?? null) === $variationId) {
-                return ['value' => $variation['value'], 'key' => $variation['key']];
-            }
-        }
-        return null;
+        return EvaluationResult::variation($flag, $variationId);
     }
 
+    /** @param array{value: mixed, key: string}|null $variation */
+    private static function keyText(?array $variation): string
+    {
+        return EvaluationResult::keyText($variation);
+    }
+
+    private static function stringify(mixed $value): string
+    {
+        return EvaluationResult::stringify($value);
+    }
+
+    private static function nowMs(): float
+    {
+        return EvaluationResult::nowMs();
+    }
+
+    /**
+     * @param list<string> $reasons
+     * @return array<string, mixed>
+     */
     private static function result(
         mixed $value,
         ?string $variationKey,
@@ -244,14 +351,14 @@ final class Evaluator
         string $flagKey,
         array $reasons
     ): array {
-        return [
-            'value'        => $value,
-            'variationKey' => $variationKey,
-            'source'       => $source,
-            'ruleId'       => $ruleId,
-            'ruleType'     => $ruleType,
-            'flagKey'      => $flagKey,
-            'reasons'      => $reasons,
-        ];
+        return EvaluationResult::make(
+            $value,
+            $variationKey,
+            $source,
+            $ruleId,
+            $ruleType,
+            $flagKey,
+            $reasons
+        );
     }
 }

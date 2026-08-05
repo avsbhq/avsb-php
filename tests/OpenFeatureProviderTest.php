@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Tests;
 
 use Avsbhq\Avsb\AvsbServer;
+use Avsbhq\Avsb\AvsbServerOptions;
 use Avsbhq\Avsb\OpenFeatureProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -12,7 +13,7 @@ final class OpenFeatureProviderTest extends TestCase
 {
     private function server(): AvsbServer
     {
-        return new AvsbServer([
+        return AvsbServer::fromDatafile([
             'version'         => 2,
             'projectType'     => 'FEATURE_FLAG',
             'sdkKey'          => 'test',
@@ -35,7 +36,7 @@ final class OpenFeatureProviderTest extends TestCase
                 ],
             ],
             'audiences' => [],
-        ]);
+        ], new AvsbServerOptions(events: false, heartbeat: false));
     }
 
     public function testGetMetadataReturnsProviderName(): void
@@ -58,7 +59,24 @@ final class OpenFeatureProviderTest extends TestCase
         $provider = new OpenFeatureProvider($this->server());
         $result   = $provider->resolveBooleanValue('non-existent', false);
         self::assertFalse($result['value']);
-        self::assertSame('not_found', $result['reason']);
+        // OpenFeature's own vocabulary, not the raw A vs B source: a missing
+        // flag reads as DEFAULT to every OpenFeature consumer.
+        self::assertSame('DEFAULT', $result['reason']);
+        self::assertSame('not_found', $result['flagMetadata']['source']);
+    }
+
+    public function testResolveReportsProviderNotReadyWhenNoDatafileLoaded(): void
+    {
+        // No datafile and no key: nothing can be evaluated, and OpenFeature
+        // has a name for that state which is not "the flag is missing".
+        $server = new AvsbServer('', new AvsbServerOptions(events: false, heartbeat: false));
+        $provider = new OpenFeatureProvider($server);
+
+        $result = $provider->resolveBooleanValue('bool-flag', true);
+
+        self::assertTrue($result['value']);
+        self::assertSame('ERROR', $result['reason']);
+        self::assertSame('PROVIDER_NOT_READY', $result['errorCode']);
     }
 
     public function testResolveStringValueReturnsDefault(): void

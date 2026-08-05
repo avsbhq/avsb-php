@@ -48,7 +48,12 @@ final class Holdouts
             $hashAttr  = $holdout['hashAttribute'] ?? 'userId';
             $bucketKey = self::holdoutBucketKey($context, $hashAttr);
             $hash      = Hash::murmurhash3($holdout['key'] . ':' . $bucketKey) % 10000;
-            $threshold = (int) floor($trafficAllocation * 10000);
+            // Float comparison, never a truncation. Flooring put holdouts one
+            // bucket out of step with the ab_test allocation check in the same
+            // datafile: a 0.12345 holdout has a threshold of 1234.5, so bucket
+            // 1234 is inside the window, while the floored form compared
+            // against 1234 and let that context through.
+            $threshold = $trafficAllocation * 10000;
 
             if ($hash >= $threshold) {
                 continue;
