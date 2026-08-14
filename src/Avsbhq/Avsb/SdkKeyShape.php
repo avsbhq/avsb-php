@@ -45,7 +45,7 @@ final class SdkKeyShape
         return 'AvsB SDK key "' . self::describe($sdkKey) . '" does not look like an SDK key: '
             . self::diagnose($sdkKey) . '. Keys look like ' . self::EXAMPLE_KEY
             . ' (sdk_<environment>_<id>). Copy the key for the environment you want from '
-            . 'app.avsb.cloud, then Settings, then Environments. The SDK will keep going '
+            . 'app.avsb.cloud, then Environments in the project sidebar. The SDK will keep going '
             . 'with the value you passed, so if the datafile request 404s next, this is why.';
     }
 
