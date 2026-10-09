@@ -23,6 +23,8 @@ use RuntimeException;
  *
  * Fixture resolution prefers the monorepo copy and falls back to the copy
  * vendored into this package, which is what the published repo carries.
+ * fixturesDir() and readJsonFile() are public so ConformanceAllocationTest
+ * resolves and reads the allocation family through the same code.
  */
 final class ConformanceTest extends TestCase
 {
@@ -37,7 +39,7 @@ final class ConformanceTest extends TestCase
         ];
     }
 
-    private static function fixturesDir(): string
+    public static function fixturesDir(): string
     {
         foreach (self::fixtureCandidates() as $candidate) {
             if (is_file($candidate . '/manifest.json')) {
@@ -54,7 +56,7 @@ final class ConformanceTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private static function readJsonFile(string $path, string $what): array
+    public static function readJsonFile(string $path, string $what): array
     {
         if (!is_file($path)) {
             throw new RuntimeException(

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Avsbhq\Avsb\Core;
 
 /**
- * The ab_test branch of the evaluator: allocation gate, then bucket walk.
+ * The ab_test branch of the evaluator: allocation gate (AllocationGate, shared
+ * with targeted_delivery rules), then bucket walk.
  *
  * Both comparisons are FLOAT comparisons against the raw product, never a
  * truncated or rounded integer. A 0.12345 rollout puts the threshold at 1234.5:
@@ -36,18 +37,12 @@ final class AbTestRule
         array &$reasons,
         ?callable $onExposure
     ): ?array {
-        $allocHash = Hash::murmurhash3("{$hashValue}{$flagKey}__{$rule['id']}") % self::MAX_BUCKET;
-        $trafficAllocation = $rule['trafficAllocation'] ?? null;
+        // The allocation gate is shared with targeted_delivery rules (N1-1).
+        $exclusion = AllocationGate::exclusion($rule, $flagKey, $hashValue);
+        if ($exclusion !== null) {
+            $reasons[] = $exclusion;
 
-        if ($trafficAllocation !== null) {
-            $threshold = (float) $trafficAllocation * self::MAX_BUCKET;
-            if ($allocHash >= $threshold) {
-                $reasons[] = "rule \"{$rule['id']}\" excluded by traffic allocation "
-                    . "(hash {$allocHash} >= threshold "
-                    . JsSemantics::numberToString($threshold) . ')';
-
-                return null;
-            }
+            return null;
         }
 
         $hash = Hash::murmurhash3("{$hashValue}{$flagKey}") % self::MAX_BUCKET;

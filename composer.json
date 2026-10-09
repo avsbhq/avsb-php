@@ -49,6 +49,12 @@
       "Avsbhq\\Avsb\\Tests\\": "tests/"
     }
   },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "scripts-descriptions": {
+    "test": "Run the PHPUnit suite, including the cross-language conformance corpus."
+  },
   "config": {
     "sort-packages": true
   }

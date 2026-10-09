@@ -18,7 +18,7 @@ use Psr\Log\NullLogger;
  * Quickstart, and the whole of it:
  *
  *   $server = new AvsbServer($_ENV['AVSB_SDK_KEY']);
- *   $flag = $server->getBoolFlag('checkout-v2', false, EvalContext::user('alice'));
+ *   $flag = $server->getBoolFlag('checkout_v2', false, EvalContext::user('alice'));
  *   if ($flag->value) { ... }
  *
  * The constructor loads the datafile through a TTL cache, so a warm process

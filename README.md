@@ -43,7 +43,7 @@ use Avsbhq\Avsb\EvalContext;
 
 $server = new AvsbServer($_ENV['AVSB_SDK_KEY']);
 
-$flag = $server->getBoolFlag('checkout-v2', false, EvalContext::user('alice', [
+$flag = $server->getBoolFlag('checkout_v2', false, EvalContext::user('alice', [
     'plan' => 'pro',
 ]));
 
@@ -191,7 +191,7 @@ $context = EvalContext::fromArray($decoded);
 ```
 
 When a rule sets `hashAttribute` to `organization.key`, everyone in the same
-organisation gets the same variation regardless of their own user key. Audience
+organization gets the same variation regardless of their own user key. Audience
 conditions scoped to a kind read only that sub-context, and a condition naming a
 kind the context does not carry never matches.
 
@@ -201,16 +201,16 @@ kind the context does not carry never matches.
 
 ```php
 // AvsbServer::getBoolFlag(string $key, bool $defaultValue, ?EvalContext $context = null): Flag
-$showBanner = $server->getBoolFlag('promo-banner', false, $context);
+$showBanner = $server->getBoolFlag('promo_banner', false, $context);
 
 // AvsbServer::getStringFlag(string $key, string $defaultValue, ?EvalContext $context = null): Flag
-$theme = $server->getStringFlag('ui-theme', 'light', $context);
+$theme = $server->getStringFlag('ui_theme', 'light', $context);
 
 // AvsbServer::getNumberFlag(string $key, float $defaultValue, ?EvalContext $context = null): Flag
-$maxRetries = $server->getNumberFlag('max-retries', 3.0, $context);
+$maxRetries = $server->getNumberFlag('max_retries', 3.0, $context);
 
 // AvsbServer::getJsonFlag(string $key, mixed $defaultValue, ?EvalContext $context = null): Flag
-$config = $server->getJsonFlag('api-config', [], $context);
+$config = $server->getJsonFlag('api_config', [], $context);
 ```
 
 `$defaultValue` is required on every call. It is what you get when the flag is
@@ -227,7 +227,7 @@ the value is that string, not `true`. Read `$flag->value` for the value and
 All properties are readonly and public, so there are no getters to remember:
 
 ```php
-$flag = $server->getBoolFlag('checkout-v2', false, $context);
+$flag = $server->getBoolFlag('checkout_v2', false, $context);
 
 $flag->value;           // mixed             the evaluated value
 $flag->variationKey;    // string|null       null for default, not_found, not_ready
@@ -286,7 +286,7 @@ use Avsbhq\Avsb\DecisionLog;
 $log = new DecisionLog();
 $server = new AvsbServer($sdkKey, new AvsbServerOptions(decisionLog: $log));
 
-$server->getBoolFlag('checkout-v2', false, $context);
+$server->getBoolFlag('checkout_v2', false, $context);
 
 foreach ($log->getEntries() as $entry) {
     echo $entry->flagKey . ': ' . json_encode($entry->value) . PHP_EOL;
@@ -458,7 +458,7 @@ class CheckoutController extends AbstractController
     {
         $context = $request->attributes->get('avsb_context')
             ?? EvalContext::user((string) $this->getUser()?->getId());
-        $flag = $this->avsb->getBoolFlag('checkout-v2', false, $context);
+        $flag = $this->avsb->getBoolFlag('checkout_v2', false, $context);
         // ...
     }
 }
@@ -485,7 +485,7 @@ final class CheckoutFlagTest extends TestCase
           "sdkKey": "sdk_test_conformancefixture01",
           "flags": [{
             "id": "flag_checkout",
-            "key": "checkout-v2",
+            "key": "checkout_v2",
             "type": "boolean",
             "enabled": true,
             "defaultVariationId": "var_off",
@@ -508,7 +508,7 @@ final class CheckoutFlagTest extends TestCase
         }
         JSON);
 
-        $flag = $server->getBoolFlag('checkout-v2', false, EvalContext::user('alice'));
+        $flag = $server->getBoolFlag('checkout_v2', false, EvalContext::user('alice'));
 
         self::assertTrue($flag->value);
         self::assertTrue($flag->isEnabled());
@@ -556,13 +556,13 @@ sources onto `STATIC`; and a server with no datafile onto
 ```php
 // LaunchDarkly
 $client = new LDClient('sdk-key');
-$value  = $client->variation('checkout-v2', LDContext::create('alice'), false);
+$value  = $client->variation('checkout_v2', LDContext::create('alice'), false);
 ```
 
 ```php
 // A vs B
 $server = new AvsbServer($_ENV['AVSB_SDK_KEY']);
-$value  = $server->getBoolFlag('checkout-v2', false, EvalContext::user('alice'))->value;
+$value  = $server->getBoolFlag('checkout_v2', false, EvalContext::user('alice'))->value;
 ```
 
 Differences that matter: getters are typed and require an explicit default, the

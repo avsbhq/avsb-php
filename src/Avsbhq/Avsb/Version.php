@@ -14,7 +14,7 @@ namespace Avsbhq\Avsb;
 final class Version
 {
     /** Keep in step with the tag when releasing. */
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
 
     /**
      * The package identifier, exactly as published. The dashboard groups

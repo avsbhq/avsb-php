@@ -165,6 +165,17 @@ final class Evaluator
                     if (empty($rule['variations'])) {
                         continue 2;
                     }
+                    // A targeted delivery rule below 100 percent is a ROLLOUT:
+                    // serve the variation to that share of the audience and let
+                    // everyone else fall through to the next rule, exactly as an
+                    // ab_test rule's allocation does (N1-1). The gate sits after
+                    // the empty-variations skip, so a rule with nothing to serve
+                    // stays a silent skip.
+                    $tdExclusion = AllocationGate::exclusion($rule, $flagKey, $hashValue);
+                    if ($tdExclusion !== null) {
+                        $reasons[] = $tdExclusion;
+                        continue 2;
+                    }
                     $targetVar = self::getVariationValue(
                         $flag,
                         $rule['variations'][0]['variationId'] ?? ''
