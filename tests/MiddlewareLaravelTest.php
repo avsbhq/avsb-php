@@ -55,7 +55,6 @@ final class MiddlewareLaravelTest extends TestCase
         // Reset to null via reflection.
         $ref  = new \ReflectionClass(Facade::class);
         $prop = $ref->getProperty('instance');
-        $prop->setAccessible(true);
         $prop->setValue(null, null);
 
         $this->expectException(\RuntimeException::class);
@@ -103,7 +102,14 @@ final class MiddlewareLaravelTest extends TestCase
         $bindings = [];
         $fakeApp  = new class ($bindings) {
             private array $singletons = [];
-            public function __construct(private array &$bindings) {}
+            private object $config;
+
+            public function __construct(private array &$bindings)
+            {
+                $this->config = new class {
+                    public function get(string $key, mixed $default = null): mixed { return $default; }
+                };
+            }
 
             public function singleton(string $abstract, callable $factory): void
             {
@@ -111,19 +117,17 @@ final class MiddlewareLaravelTest extends TestCase
                 $this->bindings[$abstract] = $factory;
             }
 
+            // Laravel resolves the config repository through the container, and that is
+            // how the provider reads it: make('config'), not a config() helper.
             public function make(string $abstract): mixed
             {
+                if ($abstract === 'config') {
+                    return $this->config;
+                }
                 if (isset($this->singletons[$abstract])) {
                     return ($this->singletons[$abstract])($this);
                 }
                 return null;
-            }
-
-            public function config(): object
-            {
-                return new class {
-                    public function get(string $key, mixed $default = null): mixed { return $default; }
-                };
             }
         };
 

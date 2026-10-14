@@ -308,7 +308,11 @@ final class AvsbServerTest extends TestCase
         self::assertSame('purchase_completed', $event['eventName']);
         self::assertSame('alice', $event['visitorId']);
         self::assertSame(49.99, $event['revenue']);
-        self::assertSame(2.0, $event['value']);
+        // JSON has one number type, so json_encode(2.0) writes 2 and it decodes as the int 2.
+        // The wire value is the number 2 either way; what must hold is that it is a number,
+        // not a string, and that it is the value and not the revenue.
+        self::assertTrue(is_int($event['value']) || is_float($event['value']), 'value must be a JSON number');
+        self::assertEqualsWithDelta(2.0, $event['value'], 0.0);
         self::assertSame(self::SDK_KEY, $body['sdkKey']);
     }
 

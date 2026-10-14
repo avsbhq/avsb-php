@@ -1,0 +1,5 @@
+# A library does not commit its lockfile: consumers resolve their own versions.
+vendor/
+composer.lock
+.phpunit.result.cache
+.phpunit.cache/
